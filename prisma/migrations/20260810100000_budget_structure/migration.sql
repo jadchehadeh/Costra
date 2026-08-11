@@ -1,0 +1,12 @@
+CREATE TABLE "CostCategory" ("id" TEXT PRIMARY KEY,"projectId" TEXT NOT NULL REFERENCES "Project"("id") ON DELETE CASCADE,"name" TEXT NOT NULL,"code" TEXT NOT NULL,"description" TEXT,"displayOrder" INTEGER NOT NULL DEFAULT 0,"active" BOOLEAN NOT NULL DEFAULT true,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE UNIQUE INDEX "CostCategory_projectId_code_key" ON "CostCategory"("projectId","code");
+CREATE INDEX "CostCategory_projectId_displayOrder_idx" ON "CostCategory"("projectId","displayOrder");
+CREATE TABLE "CostCode" ("id" TEXT PRIMARY KEY,"projectId" TEXT NOT NULL REFERENCES "Project"("id") ON DELETE CASCADE,"categoryId" TEXT NOT NULL REFERENCES "CostCategory"("id") ON DELETE RESTRICT,"code" TEXT NOT NULL,"name" TEXT NOT NULL,"description" TEXT,"displayOrder" INTEGER NOT NULL DEFAULT 0,"active" BOOLEAN NOT NULL DEFAULT true,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE UNIQUE INDEX "CostCode_projectId_code_key" ON "CostCode"("projectId","code");
+CREATE INDEX "CostCode_categoryId_displayOrder_idx" ON "CostCode"("categoryId","displayOrder");
+CREATE TABLE "BudgetItem" ("id" TEXT PRIMARY KEY,"projectId" TEXT NOT NULL REFERENCES "Project"("id") ON DELETE CASCADE,"categoryId" TEXT NOT NULL REFERENCES "CostCategory"("id") ON DELETE RESTRICT,"costCodeId" TEXT NOT NULL REFERENCES "CostCode"("id") ON DELETE RESTRICT,"description" TEXT NOT NULL,"originalBudget" DECIMAL(18,2) NOT NULL,"currency" VARCHAR(3) NOT NULL,"unit" TEXT,"quantity" DECIMAL(18,4),"unitRate" DECIMAL(18,4),"notes" TEXT,"active" BOOLEAN NOT NULL DEFAULT true,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE INDEX "BudgetItem_projectId_active_idx" ON "BudgetItem"("projectId","active");
+CREATE INDEX "BudgetItem_categoryId_idx" ON "BudgetItem"("categoryId");
+CREATE INDEX "BudgetItem_costCodeId_idx" ON "BudgetItem"("costCodeId");
+CREATE TABLE "BudgetRevision" ("id" TEXT PRIMARY KEY,"budgetItemId" TEXT NOT NULL REFERENCES "BudgetItem"("id") ON DELETE CASCADE,"amount" DECIMAL(18,2) NOT NULL,"reason" TEXT NOT NULL,"createdById" TEXT,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "BudgetRevision_budgetItemId_createdAt_idx" ON "BudgetRevision"("budgetItemId","createdAt");

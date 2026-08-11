@@ -1,0 +1,11 @@
+CREATE TYPE "ProjectStatus" AS ENUM ('PLANNING','ACTIVE','ON_HOLD','COMPLETED','CLOSED');
+CREATE TABLE "Role" ("id" TEXT PRIMARY KEY, "key" TEXT NOT NULL UNIQUE, "name" TEXT NOT NULL);
+CREATE TABLE "Permission" ("id" TEXT PRIMARY KEY, "key" TEXT NOT NULL UNIQUE, "description" TEXT NOT NULL);
+CREATE TABLE "RolePermission" ("roleId" TEXT NOT NULL REFERENCES "Role"("id") ON DELETE CASCADE, "permissionId" TEXT NOT NULL REFERENCES "Permission"("id") ON DELETE CASCADE, PRIMARY KEY ("roleId","permissionId"));
+CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "email" TEXT NOT NULL UNIQUE, "name" TEXT NOT NULL, "passwordHash" TEXT NOT NULL, "active" BOOLEAN NOT NULL DEFAULT true, "roleId" TEXT NOT NULL REFERENCES "Role"("id"), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE TABLE "Project" ("id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "number" TEXT NOT NULL UNIQUE, "client" TEXT NOT NULL, "projectType" TEXT, "location" TEXT, "contractValue" DECIMAL(18,2), "currency" VARCHAR(3) NOT NULL DEFAULT 'SAR', "startDate" TIMESTAMP(3), "plannedCompletionDate" TIMESTAMP(3), "status" "ProjectStatus" NOT NULL DEFAULT 'PLANNING', "description" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE TABLE "ProjectMember" ("projectId" TEXT NOT NULL REFERENCES "Project"("id") ON DELETE CASCADE, "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, PRIMARY KEY ("projectId","userId"));
+CREATE TABLE "AuditLog" ("id" TEXT PRIMARY KEY, "userId" TEXT REFERENCES "User"("id") ON DELETE SET NULL, "action" TEXT NOT NULL, "entity" TEXT NOT NULL, "entityId" TEXT, "oldValue" JSONB, "newValue" JSONB, "ipAddress" TEXT, "sessionMetadata" JSONB, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "AuditLog_entity_entityId_idx" ON "AuditLog"("entity","entityId");
+CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
+CREATE TABLE "ApplicationSetting" ("id" TEXT PRIMARY KEY, "key" TEXT NOT NULL UNIQUE, "value" JSONB NOT NULL, "description" TEXT, "updatedAt" TIMESTAMP(3) NOT NULL);

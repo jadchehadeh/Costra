@@ -1,0 +1,2 @@
+CREATE TYPE "BudgetItemStatus" AS ENUM ('ACTIVE','CLOSED','ON_HOLD','CANCELLED');
+ALTER TABLE "BudgetItem" ADD COLUMN "status" "BudgetItemStatus" NOT NULL DEFAULT 'ACTIVE';

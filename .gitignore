@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+*.log
+apps/*/dist
+apps/api/generated
+.runtime

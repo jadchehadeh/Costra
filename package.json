@@ -1,0 +1,26 @@
+{
+  "name": "costra",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @costra/api\" \"npm run dev -w @costra/web\"",
+    "build": "npm run build -w @costra/api && npm run build -w @costra/web",
+    "typecheck": "npm run typecheck -w @costra/api && npm run typecheck -w @costra/web",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx --env-file=.env prisma/seed.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "prettier": "^3.9.6",
+    "prisma": "^6.13.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.13.0",
+    "bcryptjs": "^3.0.2"
+  }
+}

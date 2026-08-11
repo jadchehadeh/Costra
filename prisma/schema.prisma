@@ -1,0 +1,396 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CLOSED
+}
+
+enum BudgetItemStatus {
+  ACTIVE
+  CLOSED
+  ON_HOLD
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  OPEN
+  PARTIALLY_RECEIVED
+  FULLY_RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum PmeEmployeeStatus {
+  ACTIVE
+  INACTIVE
+  LEFT_PROJECT
+}
+
+enum PmeCostStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  name                String
+  passwordHash        String
+  active              Boolean              @default(true)
+  roleId              String
+  role                Role                 @relation(fields: [roleId], references: [id])
+  projectAccess       ProjectMember[]
+  auditLogs           AuditLog[]
+  budgetReallocations BudgetReallocation[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model ProjectPackage {
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  active       Boolean      @default(true)
+  displayOrder Int          @default(0)
+  budgetItems  BudgetItem[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([projectId, name])
+  @@index([projectId, displayOrder])
+}
+
+model Trade {
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  active       Boolean      @default(true)
+  displayOrder Int          @default(0)
+  budgetItems  BudgetItem[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([projectId, name])
+  @@index([projectId, displayOrder])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  name        String
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Project {
+  id                    String                  @id @default(cuid())
+  name                  String
+  number                String                  @unique
+  client                String
+  projectType           String?
+  location              String?
+  contractValue         Decimal?                @db.Decimal(18, 2)
+  currency              String                  @default("SAR") @db.VarChar(3)
+  startDate             DateTime?
+  plannedCompletionDate DateTime?
+  status                ProjectStatus           @default(PLANNING)
+  description           String?
+  members               ProjectMember[]
+  costCategories        CostCategory[]
+  costCodes             CostCode[]
+  budgetItems           BudgetItem[]
+  budgetReallocations   BudgetReallocation[]
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  deletedAt             DateTime?
+  packages              ProjectPackage[]
+  trades                Trade[]
+  suppliers             Supplier[]
+  purchaseOrders        MaterialPurchaseOrder[]
+  pmeCategories         PmeCategory[]
+  pmeEmployees          PmeEmployee[]
+  pmeOtherCosts         PmeOtherCost[]
+
+  @@index([deletedAt])
+}
+
+model PmeCategory {
+  id             String         @id @default(cuid())
+  projectId      String
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name           String
+  kind           String
+  displayOrder   Int
+  originalBudget Decimal        @default(0) @db.Decimal(18, 2)
+  currentBudget  Decimal        @default(0) @db.Decimal(18, 2)
+  employees      PmeEmployee[]
+  otherCosts     PmeOtherCost[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([projectId, name])
+  @@index([projectId, displayOrder])
+}
+
+model PmeEmployee {
+  id             String            @id @default(cuid())
+  projectId      String
+  project        Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       PmeCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  employeeNumber Int
+  position       String
+  name           String
+  employeeId     String
+  status         PmeEmployeeStatus @default(ACTIVE)
+  remarks        String?
+  monthlyCosts   PmeMonthlyCost[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([projectId, employeeId])
+  @@unique([projectId, employeeNumber])
+  @@index([projectId, categoryId])
+}
+
+model PmeMonthlyCost {
+  id         String      @id @default(cuid())
+  employeeId String
+  employee   PmeEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month      DateTime
+  salary     Decimal     @db.Decimal(18, 2)
+  wphPercent Decimal     @db.Decimal(7, 6)
+  remarks    String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([employeeId, month])
+  @@index([employeeId, month])
+}
+
+model PmeOtherCost {
+  id              String        @id @default(cuid())
+  projectId       String
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  categoryId      String
+  category        PmeCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  item            String
+  poNumber        String
+  transactionDate DateTime
+  amount          Decimal       @db.Decimal(18, 2)
+  remarks         String?
+  status          PmeCostStatus @default(OPEN)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([projectId, categoryId])
+  @@index([projectId, transactionDate])
+  @@index([projectId, poNumber])
+}
+
+model CostCategory {
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  code         String
+  description  String?
+  displayOrder Int          @default(0)
+  active       Boolean      @default(true)
+  costCodes    CostCode[]
+  budgetItems  BudgetItem[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([projectId, code])
+  @@index([projectId, displayOrder])
+}
+
+model CostCode {
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     CostCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  code         String
+  name         String
+  description  String?
+  displayOrder Int          @default(0)
+  active       Boolean      @default(true)
+  budgetItems  BudgetItem[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([projectId, code])
+  @@index([categoryId, displayOrder])
+}
+
+model BudgetItem {
+  id               String                  @id @default(cuid())
+  projectId        String
+  project          Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  categoryId       String
+  category         CostCategory            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  costCodeId       String
+  costCode         CostCode                @relation(fields: [costCodeId], references: [id], onDelete: Restrict)
+  tradeId          String?
+  trade            Trade?                  @relation(fields: [tradeId], references: [id], onDelete: Restrict)
+  packageId        String?
+  package          ProjectPackage?         @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  description      String
+  originalBudget   Decimal                 @db.Decimal(18, 2)
+  currency         String                  @db.VarChar(3)
+  unit             String?
+  quantity         Decimal?                @db.Decimal(18, 4)
+  unitRate         Decimal?                @db.Decimal(18, 4)
+  notes            String?
+  active           Boolean                 @default(true)
+  status           BudgetItemStatus        @default(ACTIVE)
+  revisions        BudgetRevision[]
+  reallocationsOut BudgetReallocation[]    @relation("ReallocationSource")
+  reallocationsIn  BudgetReallocation[]    @relation("ReallocationTarget")
+  purchaseOrders   MaterialPurchaseOrder[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  deletedAt        DateTime?
+
+  @@index([projectId, active])
+  @@index([categoryId])
+  @@index([costCodeId])
+  @@index([tradeId])
+  @@index([packageId])
+  @@index([deletedAt])
+}
+
+model Supplier {
+  id             String                  @id @default(cuid())
+  projectId      String
+  project        Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name           String
+  active         Boolean                 @default(true)
+  purchaseOrders MaterialPurchaseOrder[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@unique([projectId, name])
+  @@index([projectId, name])
+}
+
+model MaterialPurchaseOrder {
+  id                    String              @id @default(cuid())
+  projectId             String
+  project               Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  materialId            String
+  material              BudgetItem          @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  supplierId            String
+  supplier              Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  poNumber              String
+  poDate                DateTime
+  poAmount              Decimal             @db.Decimal(18, 2)
+  receivedMaterialValue Decimal             @default(0) @db.Decimal(18, 2)
+  accruals              Decimal             @default(0) @db.Decimal(18, 2)
+  paid                  Decimal             @default(0) @db.Decimal(18, 2)
+  notes                 String?
+  status                PurchaseOrderStatus @default(OPEN)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@unique([projectId, poNumber])
+  @@index([materialId, poDate])
+  @@index([supplierId])
+}
+
+model BudgetReallocation {
+  id                 String     @id @default(cuid())
+  projectId          String
+  project            Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceBudgetItemId String
+  sourceBudgetItem   BudgetItem @relation("ReallocationSource", fields: [sourceBudgetItemId], references: [id], onDelete: Restrict)
+  targetBudgetItemId String
+  targetBudgetItem   BudgetItem @relation("ReallocationTarget", fields: [targetBudgetItemId], references: [id], onDelete: Restrict)
+  amount             Decimal    @db.Decimal(18, 2)
+  reason             String
+  reference          String     @unique
+  createdById        String
+  createdBy          User       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt          DateTime   @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([sourceBudgetItemId])
+  @@index([targetBudgetItemId])
+}
+
+model BudgetRevision {
+  id           String     @id @default(cuid())
+  budgetItemId String
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
+  amount       Decimal    @db.Decimal(18, 2)
+  reason       String
+  createdById  String?
+  createdAt    DateTime   @default(now())
+
+  @@index([budgetItemId, createdAt])
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+}
+
+model AuditLog {
+  id              String   @id @default(cuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action          String
+  entity          String
+  entityId        String?
+  oldValue        Json?
+  newValue        Json?
+  ipAddress       String?
+  sessionMetadata Json?
+  createdAt       DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model ApplicationSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedAt   DateTime @updatedAt
+}
